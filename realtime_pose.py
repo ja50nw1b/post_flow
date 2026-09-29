@@ -32,7 +32,8 @@ SLIM_COLORS_BGR = {
     (12,14):(0,140,255),  (14,16):(0,140,255),
 }
 
-VIS_THRESHOLD = 0.5
+VIS_THRESHOLD_DISPLAY = 0.7   # 顯示用，不顯示黑點
+VIS_THRESHOLD_MODEL   = 0.5   # 姿勢判斷用，保留更多資料
 
 def to_pt(arr):
     return (int(arr[0]), int(arr[1]))
@@ -71,10 +72,10 @@ def main():
             hip_px  = ((pixel[11] + pixel[12]) / 2).astype(int)
             head_px = pixel[0].astype(int)
 
-            shoulder_ok = vis[5] >= VIS_THRESHOLD and vis[6] >= VIS_THRESHOLD
-            hip_ok      = vis[11] >= VIS_THRESHOLD and vis[12] >= VIS_THRESHOLD
+            shoulder_ok = vis[5] >= VIS_THRESHOLD_DISPLAY and vis[6] >= VIS_THRESHOLD_DISPLAY
+            hip_ok      = vis[11] >= VIS_THRESHOLD_DISPLAY and vis[12] >= VIS_THRESHOLD_DISPLAY
 
-            if vis[0] >= VIS_THRESHOLD and shoulder_ok:
+            if vis[0] >= VIS_THRESHOLD_DISPLAY and shoulder_ok:
                 cv2.line(annotated, to_pt(head_px), to_pt(neck_px),
                          (0,215,255), 3, cv2.LINE_AA)
 
@@ -83,14 +84,14 @@ def main():
                          (150,255,150), 3, cv2.LINE_AA)
 
             for i, j in SLIM_CONNECTIONS_YOLO:
-                if vis[i] < VIS_THRESHOLD or vis[j] < VIS_THRESHOLD:
+                if vis[i] < VIS_THRESHOLD_DISPLAY or vis[j] < VIS_THRESHOLD_DISPLAY:
                     continue
                 color = SLIM_COLORS_BGR.get((i,j), (180,180,180))
                 cv2.line(annotated, to_pt(pixel[i]), to_pt(pixel[j]),
                          color, 3, cv2.LINE_AA)
 
             for idx in SLIM_IDS_YOLO:
-                dot_color = (100,100,100) if vis[idx] < VIS_THRESHOLD \
+                dot_color = (100,100,100) if vis[idx] < VIS_THRESHOLD_DISPLAY \
                             else (255,255,255)
                 cv2.circle(annotated, to_pt(pixel[idx]), 6, dot_color, -1, cv2.LINE_AA)
                 cv2.circle(annotated, to_pt(pixel[idx]), 6, (0,0,0), 1, cv2.LINE_AA)
