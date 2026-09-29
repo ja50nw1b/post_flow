@@ -7,7 +7,7 @@ import torch
 model = YOLO('yolov8n-pose.pt')
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-print(f"✓ 使用裝置：{device}")
+print(f"✓ Device: {device}")
 model.to(device)
 
 SLIM_IDS_YOLO = [0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
@@ -32,8 +32,8 @@ SLIM_COLORS_BGR = {
     (12,14):(0,140,255),  (14,16):(0,140,255),
 }
 
-VIS_THRESHOLD_DISPLAY = 0.7   # 顯示用，不顯示黑點
-VIS_THRESHOLD_MODEL   = 0.5   # 姿勢判斷用，保留更多資料
+VIS_THRESHOLD_DISPLAY = 0.7   
+VIS_THRESHOLD_MODEL   = 0.5   
 
 def to_pt(arr):
     return (int(arr[0]), int(arr[1]))
@@ -47,7 +47,8 @@ def main():
     fps_display = 0
     t_prev = time.time()
 
-    print("✓ 開始串流，按 Q 離開")
+    print("✓ Streaming started, press Q to quit")
+
 
     while True:
         ret, frame = cap.read()
