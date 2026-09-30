@@ -1,7 +1,7 @@
 # Post Flow - Real-time Human Pose Detection
 
 ## Introduction
-Real-time human pose detection using YOLOv8x with CUDA GPU support.
+Real-time human pose detection using YOLOv8l with CUDA GPU support.
 Features smooth head tracking using weighted average of nose, eyes and ears.
 
 ## Requirements
