@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 import time
 from ultralytics import YOLO
-from collections import deque
 import torch
 
 # ── 模型載入 ─────────────────────────────────────────────
@@ -37,6 +36,7 @@ def select_device():
 
 device = select_device()
 model.to(device)
+torch.set_num_threads(16)
 
 # ── 關節定義 ─────────────────────────────────────────────
 SLIM_IDS_YOLO = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
@@ -68,17 +68,14 @@ SLIM_COLORS_BGR = {
 
 VIS_THRESHOLD_DISPLAY = 0.5
 VIS_THRESHOLD_MODEL   = 0.5
-SKIP_IDS = [0, 1, 2, 3, 4]
-
-# ── 平滑 buffer ───────────────────────────────────────────
-HEAD_SMOOTH_BUFFER = deque(maxlen=5)
+SKIP_IDS              = [0, 1, 2, 3, 4]
 
 # ── 工具函式 ─────────────────────────────────────────────
 def to_pt(arr):
     return (int(arr[0]), int(arr[1]))
 
 def estimate_head(pixel, vis, neck_px):
-    """鼻子 + 眼睛 + 耳朵加權定位，加移動平均平滑"""
+    """鼻子 + 眼睛 + 耳朵加權定位，無平滑"""
     nose_ok      = vis[0]         >= VIS_THRESHOLD_DISPLAY
     left_eye_ok  = vis[LEFT_EYE]  >= VIS_THRESHOLD_DISPLAY
     right_eye_ok = vis[RIGHT_EYE] >= VIS_THRESHOLD_DISPLAY
@@ -88,20 +85,15 @@ def estimate_head(pixel, vis, neck_px):
     pts     = []
     weights = []
 
-    # 鼻子（最不穩定，權重最低）
     if nose_ok:
         pts.append(pixel[0])
         weights.append(0.1)
-
-    # 眼睛（中等穩定）
     if left_eye_ok:
         pts.append(pixel[LEFT_EYE])
         weights.append(0.2)
     if right_eye_ok:
         pts.append(pixel[RIGHT_EYE])
         weights.append(0.2)
-
-    # 耳朵（最穩定，權重最高）
     if left_ear_ok:
         pts.append(pixel[LEFT_EAR])
         weights.append(0.35)
@@ -112,18 +104,11 @@ def estimate_head(pixel, vis, neck_px):
     if pts:
         total_w     = sum(weights)
         head_center = sum(p * w for p, w in zip(pts, weights)) / total_w
-        head_center = head_center.astype(int)
+        return head_center.astype(int)
     else:
-        # 都看不到，從肩膀推算
         shoulder_dist = np.linalg.norm(pixel[5] - pixel[6])
         head_offset   = max(shoulder_dist * 0.7, 40)
-        head_center   = np.array([int(neck_px[0]), int(neck_px[1] - head_offset)])
-
-    # 移動平均平滑
-    HEAD_SMOOTH_BUFFER.append(head_center)
-    smoothed = np.mean(HEAD_SMOOTH_BUFFER, axis=0).astype(int)
-
-    return smoothed
+        return np.array([int(neck_px[0]), int(neck_px[1] - head_offset)])
 
 # ── 主迴圈 ───────────────────────────────────────────────
 def main():
@@ -166,17 +151,12 @@ def main():
             if shoulder_ok:
                 head_px = estimate_head(pixel, vis, neck_px)
 
-                # 脖子線
                 cv2.line(annotated, to_pt(neck_px), to_pt(head_px),
                          (0,215,255), 3, cv2.LINE_AA)
-
-                # 頭部球
                 cv2.circle(annotated, to_pt(head_px), 18,
                            (200,220,255), -1, cv2.LINE_AA)
                 cv2.circle(annotated, to_pt(head_px), 18,
                            (0,0,0), 1, cv2.LINE_AA)
-
-                # 脖子中點球
                 cv2.circle(annotated, to_pt(neck_px), 6, (255,255,255), -1)
                 cv2.circle(annotated, to_pt(neck_px), 6, (0,0,0), 1)
 
@@ -193,7 +173,7 @@ def main():
                 cv2.line(annotated, to_pt(pixel[i]), to_pt(pixel[j]),
                          color, 3, cv2.LINE_AA)
 
-            # ── 關節球（臉部不顯示）──────────────────────
+            # ── 關節球 ────────────────────────────────────
             for idx in SLIM_IDS_YOLO:
                 if idx in SKIP_IDS:
                     continue
@@ -202,7 +182,6 @@ def main():
                 cv2.circle(annotated, to_pt(pixel[idx]), 6, dot_color, -1, cv2.LINE_AA)
                 cv2.circle(annotated, to_pt(pixel[idx]), 6, (0,0,0),   1, cv2.LINE_AA)
 
-            # 髖中點球
             if hip_ok:
                 cv2.circle(annotated, to_pt(hip_px), 6, (255,255,255), -1)
                 cv2.circle(annotated, to_pt(hip_px), 6, (0,0,0), 1)
