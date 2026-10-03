@@ -2,7 +2,7 @@
 
 ## Introduction
 Real-time human pose detection using YOLOv8l with CUDA GPU support.
-Features smooth head tracking using weighted average of nose, eyes and ears.
+Features 3D joint angle calculation using MediaPipe world coordinates.
 
 ## Requirements
 - Python 3.11+
@@ -19,30 +19,40 @@ python -m venv venv
 venv\Scripts\activate
 
 # Install packages
-pip install ultralytics torch torchvision opencv-python numpy
+pip install ultralytics torch torchvision opencv-python numpy mediapipe
 ```
+
+## Files
+| File | Description |
+|------|-------------|
+| `realtime_pose.py` | Real-time skeleton detection only |
+| `pose_3d.py` | Skeleton detection + 3D joint angle calculation |
 
 ## Run
 
 ```bash
+# Skeleton detection only
 python realtime_pose.py
+
+# Skeleton + 3D angle detection
+python pose_3d.py
 ```
 
-The YOLOv8l model (~87MB) will be downloaded automatically on first run.
+Models will be downloaded automatically on first run:
+- YOLOv8l-pose (~87MB)
+- MediaPipe Pose Landmarker Heavy (~30MB)
 
 ## Controls
 - Press `Q` to quit
 
 ## Features
 - Auto device selection (CPU / CUDA GPU)
-- 13 main keypoints detection
-- Head position estimated from nose + eyes + ears weighted average
-- Moving average smoothing for stable head tracking
+- Head position estimated from eyes and ears weighted average
+- 3D joint angles using MediaPipe world coordinates (metres)
 - Occlusion handling with visibility threshold
+- `pose_3d.py` imports from `realtime_pose.py` to avoid code duplication
 
 ## Keypoints
-Uses 13 main keypoints:
-
 | ID | Name |
 |----|------|
 | 5  | left_shoulder |
@@ -58,14 +68,15 @@ Uses 13 main keypoints:
 | 15 | left_ankle |
 | 16 | right_ankle |
 
-## Head Tracking
-Head position is estimated using weighted average:
+## 3D Angle Detection
+`pose_3d.py` calculates the following joint angles using MediaPipe 3D world coordinates:
 
-| Point | Weight |
-|-------|--------|
-| Nose | 0.1 |
-| Left / Right Eye | 0.2 each |
-| Left / Right Ear | 0.35 each |
+| Joint | Points Used |
+|-------|------------|
+| Left / Right Shoulder | Neck → Shoulder → Elbow |
+| Left / Right Elbow | Shoulder → Elbow → Wrist |
+| Left / Right Hip | Shoulder → Hip → Knee |
+| Left / Right Knee | Hip → Knee → Ankle |
 
 ## GPU Acceleration
 CUDA is automatically detected. If a NVIDIA GPU is available, the user can choose to use it for faster inference.
