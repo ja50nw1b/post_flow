@@ -3,7 +3,9 @@
 ## 簡介
 提供兩個優化版本的即時人體姿態偵測：
 - **移動/邊緣裝置版**：純 MediaPipe 輕量版，適合裝置端、低延遲應用
-- **伺服器版**：YOLO + MediaPipe 混合架構，CUDA GPU 加速，精度優先
+- **伺服器版**：純 YOLO GPU 架構，針對 CUDA 裝置最佳化高 FPS
+
+> **說明**：`pose_server.py` 目前使用 2D 關節角度。等未來有多台同步攝影機後，會改用三角測量計算真正的 3D 角度。MediaPipe 已從伺服器版本移除，因為即使 YOLO 有 GPU 加速，MediaPipe 的 CPU-only 推論（約 40ms）仍是效能瓶頸。
 
 ## 需求
 - Python 3.11+
@@ -28,7 +30,7 @@ pip install ultralytics torch torchvision opencv-python numpy mediapipe
 |------|---------|------|
 | `realtime_pose.py` | 通用 | 純 YOLO 骨架偵測（可獨立執行或被引用） |
 | `pose_mobile.py` | 手機/邊緣裝置 | 純 MediaPipe Lite，CPU 執行，低解析度換取速度 |
-| `pose_server.py` | 伺服器/GPU 工作站 | YOLO（GPU）+ MediaPipe 3D 角度，自動偵測 CUDA |
+| `pose_server.py` | 伺服器/GPU 工作站 | 純 YOLO GPU 架構，搭配 2D 關節角度 |
 
 ## 執行
 
@@ -39,23 +41,22 @@ python realtime_pose.py
 # 移動/邊緣裝置版（輕量，CPU）
 python pose_mobile.py
 
-# 伺服器版（GPU 加速，高精度）
+# 伺服器版（GPU 加速）
 python pose_server.py
 ```
 
 第一次執行會自動下載模型：
 - YOLOv8l-pose（約 87MB）— `realtime_pose.py` 與 `pose_server.py` 使用
 - MediaPipe Pose Landmarker Lite（約 5MB）— `pose_mobile.py` 使用
-- MediaPipe Pose Landmarker Heavy（約 30MB）— `pose_server.py` 使用
 
 ## 操作
 - 按 `Q` 離開
 
 ## 功能
 - 頭部位置由眼睛/耳朵加權平均，或沿脊椎方向推算估算
-- 使用 MediaPipe 世界座標（公尺單位）計算真實 3D 關節角度
+- `pose_mobile.py`：使用 MediaPipe 世界座標（公尺單位）計算真實 3D 關節角度
+- `pose_server.py`：2D 關節角度，針對 GPU 吞吐量最佳化（未來規劃 3D 三角測量）
 - 可見度門檻處理遮擋問題
-- `pose_server.py` 直接引用 `realtime_pose.py` 的共用函式，避免重複程式碼
 - `pose_server.py` 自動偵測並使用 CUDA，沒有的話自動退回 CPU
 
 ## 關節點
@@ -74,19 +75,14 @@ python pose_server.py
 | 15 | 左踝 |
 | 16 | 右踝 |
 
-## 3D 角度偵測
-`pose_mobile.py` 與 `pose_server.py` 皆使用 MediaPipe 3D 世界座標計算以下關節角度：
-
-| 關節 | 使用的關節點 |
-|------|------------|
-| 左/右肩 | 頸中點 → 肩膀 → 手肘 |
-| 左/右肘 | 肩膀 → 手肘 → 手腕 |
-| 左/右髖 | 肩膀 → 髖部 → 膝蓋 |
-| 左/右膝 | 髖部 → 膝蓋 → 腳踝 |
+## 未來規劃
+- [ ] 多機位 2D 關節點擷取
+- [ ] 攝影機校正（內參/外參）
+- [ ] `pose_server.py` 加入三角測量，計算真正的 3D 座標
 
 ## 該用移動版還是伺服器版？
 | 情境 | 建議使用 |
 |------|---------|
 | 在筆電/手機上跑，考慮電池續航 | `pose_mobile.py` |
-| 在有 GPU 的工作站/伺服器上跑，精度優先 | `pose_server.py` |
+| 在有 GPU 的工作站/伺服器上跑，需要最高 FPS | `pose_server.py` |
 | 只需要骨架疊加，不需要角度分析 | `realtime_pose.py` |

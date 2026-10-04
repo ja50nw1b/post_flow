@@ -3,7 +3,9 @@
 ## Introduction
 Real-time human pose detection with two optimized versions:
 - **Mobile/Edge**: Lightweight MediaPipe-only version for on-device, low-latency use
-- **Server**: YOLO + MediaPipe hybrid with CUDA GPU acceleration for high accuracy
+- **Server**: Pure YOLO GPU pipeline, optimized for high FPS on CUDA-capable machines
+
+> **Note**: `pose_server.py` currently uses 2D joint angles. True 3D angle calculation via multi-camera triangulation is planned once multiple synchronized cameras are available. MediaPipe was removed from the server version because its CPU-only inference (~40ms) became the bottleneck, even with a GPU available for YOLO.
 
 ## Requirements
 - Python 3.11+
@@ -28,7 +30,7 @@ pip install ultralytics torch torchvision opencv-python numpy mediapipe
 |------|--------|-------------|
 | `realtime_pose.py` | General | YOLO skeleton detection only (standalone or imported) |
 | `pose_mobile.py` | Mobile / Edge devices | Pure MediaPipe Lite, CPU-only, low resolution for speed |
-| `pose_server.py` | Server / GPU workstation | YOLO (GPU) + MediaPipe 3D angles, auto-detects CUDA |
+| `pose_server.py` | Server / GPU workstation | Pure YOLO GPU pipeline with 2D joint angles |
 
 ## Run
 
@@ -39,23 +41,22 @@ python realtime_pose.py
 # Mobile/Edge version (lightweight, CPU)
 python pose_mobile.py
 
-# Server version (GPU-accelerated, high accuracy)
+# Server version (GPU-accelerated)
 python pose_server.py
 ```
 
 Models downloaded automatically on first run:
 - YOLOv8l-pose (~87MB) — used by `realtime_pose.py` and `pose_server.py`
 - MediaPipe Pose Landmarker Lite (~5MB) — used by `pose_mobile.py`
-- MediaPipe Pose Landmarker Heavy (~30MB) — used by `pose_server.py`
 
 ## Controls
 - Press `Q` to quit
 
 ## Features
 - Head position estimated using weighted average of eyes/ears, or spine-direction extrapolation
-- 3D joint angles using MediaPipe world coordinates (metres)
+- `pose_mobile.py`: 3D joint angles using MediaPipe world coordinates (metres)
+- `pose_server.py`: 2D joint angles, optimized for GPU throughput (3D triangulation planned)
 - Occlusion handling with visibility threshold
-- `pose_server.py` imports shared utilities from `realtime_pose.py` to avoid code duplication
 - `pose_server.py` automatically uses CUDA if available, falls back to CPU otherwise
 
 ## Keypoints
@@ -74,19 +75,14 @@ Models downloaded automatically on first run:
 | 15 | left_ankle |
 | 16 | right_ankle |
 
-## 3D Angle Detection
-Both `pose_mobile.py` and `pose_server.py` calculate the following joint angles using MediaPipe 3D world coordinates:
-
-| Joint | Points Used |
-|-------|------------|
-| Left / Right Shoulder | Neck → Shoulder → Elbow |
-| Left / Right Elbow | Shoulder → Elbow → Wrist |
-| Left / Right Hip | Shoulder → Hip → Knee |
-| Left / Right Knee | Hip → Knee → Ankle |
+## Roadmap
+- [ ] Multi-camera 2D keypoint capture
+- [ ] Camera calibration (intrinsics/extrinsics)
+- [ ] Triangulation for true 3D coordinates in `pose_server.py`
 
 ## Mobile vs Server: Which to use?
 | Scenario | Use |
 |----------|-----|
 | Running on a laptop/phone, battery life matters | `pose_mobile.py` |
-| Running on a workstation/server with a GPU, accuracy matters most | `pose_server.py` |
+| Running on a workstation/server with a GPU, need max FPS | `pose_server.py` |
 | Just want skeleton overlay, no angle analysis | `realtime_pose.py` |
